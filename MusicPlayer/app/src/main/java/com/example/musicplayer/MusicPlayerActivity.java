@@ -147,7 +147,7 @@ public class MusicPlayerActivity extends AppCompatActivity {
     private String convertTime(int duration) {
         int min = duration / 1000 / 60;
         int second = duration / 1000 % 60;
-        return min + ":" + ((second < 0) ? "0" : "") + second;
+        return min + ":" + ((second < 10) ? "0" : "") + second;
     }
 
 }
