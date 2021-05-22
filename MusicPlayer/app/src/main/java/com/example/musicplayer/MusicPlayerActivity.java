@@ -20,11 +20,9 @@ public class MusicPlayerActivity extends AppCompatActivity {
     SeekBar seekBar;
 
     String sName;
-    public static final String EXTRA_NAME = "song_name";
     static MediaPlayer mediaPlayer;
     int position;
     ArrayList<File> mySongs;
-    Thread updateSeekBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,11 +32,9 @@ public class MusicPlayerActivity extends AppCompatActivity {
         btnPlay = findViewById(R.id.btn_play_song);
         btnNext = findViewById(R.id.btn_next_song);
         btnPrevious = findViewById(R.id.btn_previous_song);
-
         txtSongName = findViewById(R.id.txt_song_name);
         txtStart = findViewById(R.id.txt_start_song);
         txtStop = findViewById(R.id.txt_stop_song);
-
         seekBar = findViewById(R.id.seek_bar);
 
         if (mediaPlayer != null) {
@@ -50,33 +46,15 @@ public class MusicPlayerActivity extends AppCompatActivity {
         Bundle bundle = intent.getExtras();
 
         mySongs = (ArrayList) bundle.getParcelableArrayList("songs");
-        String songName = intent.getStringExtra("song_name");
         position = bundle.getInt("position", 0);
         txtSongName.setSelected(true);
         Uri uri = Uri.parse(mySongs.get(position).toString());
         sName = mySongs.get(position).getName();
         txtSongName.setText(sName);
-
         mediaPlayer = MediaPlayer.create(getApplicationContext(), uri);
         mediaPlayer.start();
 
-        updateSeekBar = new Thread(() -> {
-            int totalDuration = mediaPlayer.getDuration();
-            int currentPosition = 0;
-            while (currentPosition < totalDuration) {
-                try {
-                    Thread.sleep(500);
-                    currentPosition = mediaPlayer.getCurrentPosition();
-                    seekBar.setProgress(currentPosition);
-                } catch (InterruptedException | IllegalStateException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        });
-
-        seekBar.setMax(mediaPlayer.getDuration());
-        updateSeekBar.start();
-
+        updateSeekBar();
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -94,7 +72,7 @@ public class MusicPlayerActivity extends AppCompatActivity {
             }
         });
 
-        txtStop.setText(convertTime(mediaPlayer.getDuration()));
+        setSongStop(mediaPlayer.getDuration());
         final Handler handler = new Handler();
         final int delay = 1000;
         handler.postDelayed(new Runnable() {
@@ -116,8 +94,7 @@ public class MusicPlayerActivity extends AppCompatActivity {
                 mediaPlayer.start();
             }
         });
-
-        mediaPlayer.setOnCompletionListener(mp -> btnNext.performClick());
+        mediaPlayer.setOnCompletionListener(mp -> btnNext.performClick());//play next song when the current one is finished
 
         btnNext.setOnClickListener(v -> {
             mediaPlayer.stop();
@@ -127,8 +104,10 @@ public class MusicPlayerActivity extends AppCompatActivity {
             mediaPlayer = MediaPlayer.create(getApplicationContext(), uriNextSong);
             sName = mySongs.get(position).getName();
             txtSongName.setText(sName);
+            setSongStop(mediaPlayer.getDuration());
             mediaPlayer.start();
             btnPlay.setBackgroundResource(R.drawable.ic_pause_music);
+            mediaPlayer.setOnCompletionListener(mp -> btnNext.performClick());//play next song when the current one is finished
         });
 
         btnPrevious.setOnClickListener(v -> {
@@ -139,15 +118,42 @@ public class MusicPlayerActivity extends AppCompatActivity {
             mediaPlayer = MediaPlayer.create(getApplicationContext(), uriNextSong);
             sName = mySongs.get(position).getName();
             txtSongName.setText(sName);
+            setSongStop(mediaPlayer.getDuration());
             mediaPlayer.start();
             btnPlay.setBackgroundResource(R.drawable.ic_pause_music);
+            mediaPlayer.setOnCompletionListener(mp -> btnNext.performClick());//play next song when the current one is finished
         });
     }
 
-    private String convertTime(int duration) {
+    /**
+     *
+     * @param duration in milliseconds
+     * @return the duration in minutes and seconds
+     */
+    private String convertTime (int duration) {
         int min = duration / 1000 / 60;
         int second = duration / 1000 % 60;
         return min + ":" + ((second < 10) ? "0" : "") + second;
     }
 
+    //update the seek bar when the media is playing
+    private void updateSeekBar () {
+        Handler handler = new Handler();
+        MusicPlayerActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mediaPlayer != null) {
+                    seekBar.setMax(mediaPlayer.getDuration());
+                    int currentPosition = mediaPlayer.getCurrentPosition();
+                    seekBar.setProgress(currentPosition);
+                }
+                handler.postDelayed(this, 1000);
+            }
+        });
+    }
+
+    private void setSongStop(int duration) {
+        String stopTime = convertTime(duration);
+        txtStop.setText(stopTime);
+    }
 }
